@@ -6,6 +6,7 @@ import contextily as cx
 import shapefile as shp 
 from shapely.geometry import Polygon, LineString, Point, shape, box
 import parse
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 """
 Creating legend is weird in Geopandas. Some resources:
@@ -39,8 +40,18 @@ gdf_inter = pd.merge(gdf_inter, gdf_houses[["geography", "mean"]], left_on="AFFG
 
 sm = plt.cm.ScalarMappable(cmap="OrRd", norm=plt.Normalize(vmin=0, vmax=9))
 sm.set_array([])
-cbar = plt.colorbar(sm, ticks=range(0,9+1), aspect=10, orientation="vertical", ax=ax, label="Avg Year Built")
+
+# Make colorbar the same height as the plot
+# https://stackoverflow.com/questions/18195758/set-matplotlib-colorbar-size-to-match-graph
+divider = make_axes_locatable(ax)
+cax = divider.append_axes("right", size="5%", pad=0.05)
+cbar = plt.colorbar(sm, ticks=range(0,9+1), aspect=10, orientation="vertical", label="Avg Year Built", cax=cax)
+#cbar = plt.colorbar(sm, ticks=range(0,9+1), aspect=10, orientation="vertical", ax=ax, label="Avg Year Built")
+
 cbar.ax.set_yticklabels(fields)
 
 gdf_inter.plot(ax=ax, edgecolor="black", missing_kwds={ "color": "gray" }, lw=0.5, column="mean", cmap="OrRd", legend=False)
+plt.suptitle("Philadelphia, ACS Selected Housing Characteristics, \nYear Structure Built - 2020 Census Tracts", fontsize=15, y=0.90)
+plt.tight_layout()
+#plt.figtext(0.99, 0.01, 'footnote text', horizontalalignment='left')
 plt.show()
