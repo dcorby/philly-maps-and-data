@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title></title>
+    <style>
+    html, body {
+      padding: 0;
+      margin: 0;
+    }
+    div#container {
+      text-align: center;
+    }
+    div#content {
+      display: inline-block;
+    }
+    h1 {
+      font-size: 1.6em;
+    }
+    fieldset {
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    div#map {
+      width: 850px;
+      height: 600px;
+      margin: auto;
+    }
+    .tooltip {
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      color: #800020;
+      background-color: none;
+      background: none;
+    }
+    /* Cool trick to grayscale the OSM base map:
+       https://github.com/PaulLeCam/react-leaflet/issues/143
+    */
+    .leaflet-tile-pane {
+      -webkit-filter: grayscale(100%);
+      filter: grayscale(100%);
+    }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+  </head>
+  <body>
+    <div id="container">
+      <div id="content">
+        <h1>Philadelphia Political Districts:<br>US Congress, PA House + Senate, and City Council</h1>
+
+        <fieldset>
+          <legend>Select an office:</legend>
+          <div>
+            <input type="radio" id="us-congress" name="office" value="us-congress" checked>
+            <label for="us-congress">US Congress</label>
+            <input type="radio" id="pa-house" name="office" value="pa-house">
+            <label for="pa-house">PA House</label>
+            <input type="radio" id="pa-senate" name="office" value="pa-senate">
+            <label for="pa-senate">PA Senate</label>
+            <input type="radio" id="city-council" name="office" value="city-council">
+            <label for="city-council">City Council</label>
+          </div>
+        </fieldset>
+
+        <div id="map">
+        </div>
+      </div>
+    </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+<script>
+const map = L.map("map").setView([39.9526, -75.1652], 11);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+
+let active = "us-congress"
+const radios = document.querySelectorAll("input[type=radio][name='office']");
+radios.forEach((radio) => {
+  radio.addEventListener("change", () => {
+    active = radio.value;
+    map_districts()
+  });
+});
+
+const councilors = {
+  1: "Mark Squilla", 2: "Kenyatta Johnson", 3: "Jamie Gauthier", 4: "Curtis Jones", 5 : "Darrell Clarke",
+  6: "Michael Driscoll", 7: "Quetcy Lozada", 8: "Cindy Bass", 9: "Anthony Phillips", 10: "Brian O'Neill"
+};
+const districts = {};
+fetch("data/city-limits.geojson")
+  .then((response) => {
+    const style = { color: "#800020", weight: 4, fillOpacity: 0.0 };
+    if (response.status === 200) {
+      response.json().then((data) => {
+        for (const id in data.features) {
+          const feature = data.features[id];
+          L.geoJSON(feature, { style: style }).addTo(map);
+        }
+      })
+      .then(() => {
+        map_districts();
+      });
+    }
+  });
+
+function map_districts() {
+  for (const district in districts) {
+    map.removeLayer(districts[district].layer);
+  }
+  fetch("data/districts.geojson")
+    .then((response) => {
+     const style = { color: "#4169E1", weight: 2 };
+      if (response.status === 200) {
+          response.json().then((data) => {
+            console.log(active);
+            console.log(data[active]);
+            for (const id in data[active].features) {
+              const feature = data[active].features[id];
+              const geometry = feature.geometry;
+              const district = feature.properties["DISTRICT"] || feature.properties["LEG_DISTRI"];
+              let name = "";
+              if (feature.hasOwnProperty("properties")) {
+                const properties = feature.properties;
+                name = (properties["C_FIRSTNAM"] || properties["H_FIRSTNAM"] || properties["S_FIRSTNAM"])
+                         + " " + (properties["C_LASTNAME"] || properties["H_LASTNAME"] || properties["S_LASTNAME"]);
+              } else {
+                name = councilors[district];
+              }
+              const layer = L.geoJSON(feature, { style: style })
+               .bindTooltip(district.toString(), { permanent: true, direction: "center", className: "tooltip"})
+               .openTooltip().addTo(map);
+              districts[district] = { layer: layer, feature: feature, name: name };
+            }
+          });
+      }
+     });
+}
+</script>
+
+  </body>
+</html>
